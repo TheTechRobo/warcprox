@@ -200,7 +200,10 @@ class WarcProxyHandler(warcprox.mitmproxy.MitmProxyHandler):
     def _proxy_request(self):
         warcprox_meta = self._parse_warcprox_meta()
         remote_ip = self._remote_server_conn.sock.getpeername()[0]
-        if any(ipaddress.ip_address(remote_ip) in net for net in self._blocked_subnets):
+        parsed_ip = ipaddress.ip_address(remote_ip)
+        # Normalize IPv4-mapped IPv6 to IPv4 (cf. #277)
+        parsed_ip = getattr(parsed_ip, "ipv4_mapped", None) or parsed_ip
+        if any(parsed_ip in net for net in self._blocked_subnets):
             raise warcprox.BadRequest(
                 "request rejected by warcprox: access to this subnet is not permitted"
                 )
